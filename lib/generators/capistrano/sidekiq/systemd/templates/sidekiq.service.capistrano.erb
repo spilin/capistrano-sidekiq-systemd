@@ -1,0 +1,21 @@
+[Unit]
+Description=sidekiq for <%= "#{fetch(:application)} (#{fetch(:stage)})" %>
+After=syslog.target network.target
+
+[Service]
+Type=simple
+Environment=RAILS_ENV=<%= fetch(:rails_env) %>
+WorkingDirectory=<%= fetch(:deploy_to) %>/current
+ExecStart=<%= sidekiq_cmd %> <%= process_options(index) %>
+ExecReload=/bin/kill -TSTP $MAINPID
+ExecStop=/bin/kill -TERM $MAINPID
+<%= "MemoryAccounting=#{ !!max_mem(index) }" if max_mem(index) %>
+<%= "MemoryLimit=#{ max_mem(index) }"  if max_mem(index) %>
+
+RestartSec=1
+Restart=on-failure
+
+SyslogIdentifier=sidekiq
+
+[Install]
+WantedBy=default.target
