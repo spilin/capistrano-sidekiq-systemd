@@ -115,7 +115,7 @@ namespace :sidekiq do
   def process_options(index = 0)
     args = []
     args.push "--environment #{fetch(:sidekiq_env)}"
-    %w{require tag queue config concurrency}.each do |option|
+    %w{require queue config concurrency}.each do |option|
       options = fetch(:sidekiq_options_per_process)&.[](index)
       Array((options.is_a?(Hash) && options[option.to_sym]) || fetch(:"sidekiq_#{option}")).each do |value|
         args.push "--#{option} #{value}"
@@ -124,6 +124,9 @@ namespace :sidekiq do
     if (process_options = fetch(:sidekiq_options_per_process)&.[](index)).is_a?(String)
       args.push process_options
     end
+
+    args.push "--tag #{service_unit_name(index)}" # Used to be able to identify service by monit via regex
+
     # use sidekiq_options for special options
     options = fetch(:sidekiq_options_per_process)&.[](index)
     Array((options.is_a?(Hash) && options[:sidekiq_options]) || fetch(:sidekiq_options)).each do |value|
