@@ -11,6 +11,8 @@ namespace :load do
     set :rbenv_map_bins, fetch(:rbenv_map_bins).to_a.concat(%w[sidekiq])
     set :rvm_map_bins, fetch(:rvm_map_bins).to_a.concat(%w[sidekiq])
     set :chruby_map_bins, fetch(:chruby_map_bins).to_a.concat(%w[sidekiq])
+    # Bundler integration
+    set :bundle_bins, fetch(:bundle_bins).to_a.concat(%w[sidekiq])
     # Options for single process setup
     set :sidekiq_require, nil
     set :sidekiq_tag, nil
