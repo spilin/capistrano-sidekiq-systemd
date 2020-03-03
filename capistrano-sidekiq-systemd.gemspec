@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["lyoshakr@gmail.com"]
 
   spec.summary       = "Capistrano sidekiq systemd support"
-  spec.description   = "Capistrano sidekiq systemd support. Allows to deploy multiple instances."
+  spec.description   = "Capistrano sidekiq systemd support. Allows to deploy multiple processes."
   spec.homepage      = 'https://github.com/spilin/capistrano-sidekiq-systemd'
   spec.license       = "MIT"
 

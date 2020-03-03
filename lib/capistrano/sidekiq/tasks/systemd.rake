@@ -167,12 +167,19 @@ namespace :sidekiq do
     end
   end
 
-  def max_mem(index)
+  def max_mem(index, service = :systemd)
     if multiple_processes?
       options = fetch(:sidekiq_options_per_process)&.[](index)
-      (options.is_a?(Hash) && options[:sidekiq_max_mem]) || fetch(:sidekiq_max_mem)
-    else
+      case service
+      when :systemd
+        (options.is_a?(Hash) && options[:sidekiq_max_mem]) || fetch(:sidekiq_max_mem)
+      when :monit
+        (options.is_a?(Hash) && options[:sidekiq_monit_max_mem]) || fetch(:sidekiq_monit_max_mem)
+      end
+    elsif service == :systemd
       fetch(:sidekiq_max_mem)
+    elsif service == :monit
+      fetch(:sidekiq_monit_max_mem)
     end
   end
 

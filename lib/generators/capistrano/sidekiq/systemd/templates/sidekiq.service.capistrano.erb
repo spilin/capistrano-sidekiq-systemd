@@ -12,6 +12,10 @@ ExecStop=/bin/kill -TERM $MAINPID
 <%= "MemoryAccounting=#{ !!max_mem(index) }" if max_mem(index) %>
 <%= "MemoryLimit=#{ max_mem(index) }"  if max_mem(index) %>
 
+# Greatly reduce Ruby memory fragmentation and heap usage
+# https://www.mikeperham.com/2018/04/25/taming-rails-memory-bloat/
+Environment=MALLOC_ARENA_MAX=2
+
 RestartSec=1
 Restart=on-failure
 

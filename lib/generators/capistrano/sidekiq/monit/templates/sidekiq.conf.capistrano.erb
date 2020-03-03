@@ -4,5 +4,5 @@ check process <%= service_unit_name(index) %> matching "<%= service_unit_name(in
   start program = "/bin/systemctl start <%= service_unit_name(index) %>"
   stop program = "/bin/systemctl stop <%= service_unit_name(index) %>"
   group <%= fetch(:sidekiq_monit_group) || fetch(:application) %>-sidekiq
-  <%= "if totalmem is greater than #{max_mem(index)} MB for 2 cycles then restart" if max_mem(index) %>
+  <%= "if totalmem is greater than #{max_mem(index, :monit)} MB for 2 cycles then restart" if max_mem(index, :monit) %>
 <% end %>
