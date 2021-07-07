@@ -7,6 +7,9 @@ namespace :load do
     set :sidekiq_user, nil
     set :sidekiq_max_mem, nil
     set :service_unit_name, "sidekiq-#{fetch(:stage)}.service"
+    set :sidekiq_service_unit_user, :user
+    set :sidekiq_log, nil
+    set :sidekiq_error_log, nil
     # Rbenv, Chruby, and RVM integration
     set :rbenv_map_bins, fetch(:rbenv_map_bins).to_a.concat(%w[sidekiq])
     set :rvm_map_bins, fetch(:rvm_map_bins).to_a.concat(%w[sidekiq])
@@ -42,7 +45,7 @@ namespace :sidekiq do
     on roles fetch(:sidekiq_roles) do |role|
       switch_user(role) do
         sidekiq_options_per_process.each_index do |index|
-          execute :systemctl, "--user", "reload", service_unit_name(index), raise_on_non_zero_exit: false
+          systemctl(command: 'reload', service_unit_name: service_unit_name(index), raise_on_non_zero_exit: false)
         end
       end
     end
@@ -53,7 +56,7 @@ namespace :sidekiq do
     on roles fetch(:sidekiq_roles) do |role|
       switch_user(role) do
         sidekiq_options_per_process.each_index do |index|
-          execute :systemctl, "--user", "stop", service_unit_name(index)
+          systemctl(command: 'stop', service_unit_name: service_unit_name(index))
         end
       end
     end
@@ -64,7 +67,7 @@ namespace :sidekiq do
     on roles fetch(:sidekiq_roles) do |role|
       switch_user(role) do
         sidekiq_options_per_process.each_index do |index|
-          execute :systemctl, "--user", "start", service_unit_name(index)
+          systemctl(command: 'start', service_unit_name: service_unit_name(index))
         end
       end
     end
@@ -82,7 +85,7 @@ namespace :sidekiq do
       switch_user(role) do
         create_systemd_template(role)
         sidekiq_options_per_process.each_index do |index|
-          execute :systemctl, "--user", "enable", service_unit_name(index)
+          systemctl(command: 'enable', service_unit_name: service_unit_name(index))
         end
       end
     end
@@ -93,8 +96,8 @@ namespace :sidekiq do
     on roles fetch(:sidekiq_roles) do |role|
       switch_user(role) do
         sidekiq_options_per_process.each_index do |index|
-          execute :systemctl, "--user", "disable", service_unit_name(index)
-          execute :rm, File.join(fetch(:service_unit_path, File.join(capture(:pwd), ".config", "systemd", "user")),service_unit_name(index))
+          systemctl(command: 'disable', service_unit_name: service_unit_name(index))
+          execute :rm, File.join(fetch(:service_unit_path, fetch_systemd_unit_path(capture(:pwd))), service_unit_name(index))
         end
       end
     end
@@ -103,13 +106,17 @@ namespace :sidekiq do
   def create_systemd_template(role)
     template = File.read(File.expand_path('../../../../generators/capistrano/sidekiq/systemd/templates/sidekiq.service.capistrano.erb', __FILE__))
     home_dir = capture :pwd
-    systemd_path = fetch(:service_unit_path, File.join(home_dir, ".config", "systemd", "user"))
+    systemd_path = fetch(:service_unit_path, fetch_systemd_unit_path(home_dir))
     sidekiq_cmd = SSHKit.config.command_map[:sidekiq].gsub('~', home_dir)
-    execute :mkdir, "-p", systemd_path
-    sidekiq_options_per_process.each_index do |index|
-      upload!(StringIO.new(ERB.new(template).result(binding)), "#{systemd_path}/#{service_unit_name(index)}")
+    if fetch(:sidekiq_service_unit_user) == :user
+      execute :mkdir, "-p", systemd_path
     end
-    execute :systemctl, "--user", "daemon-reload"
+    sidekiq_options_per_process.each_index do |index|
+      upload_template(data: StringIO.new(ERB.new(template).result(binding)),
+        systemd_path: systemd_path, service_unit_name: service_unit_name(index)
+      )
+    end
+    systemctl(command: 'daemon-reload')
   end
 
   def process_options(index = 0)
@@ -181,6 +188,33 @@ namespace :sidekiq do
     elsif service == :monit
       fetch(:sidekiq_monit_max_mem)
     end
+  end
+
+  def systemctl(command:, service_unit_name: nil, raise_on_non_zero_exit: true)
+    if fetch(:sidekiq_service_unit_user) == :user
+      execute :systemctl, "--user", command, service_unit_name, raise_on_non_zero_exit: raise_on_non_zero_exit
+    elsif fetch(:sidekiq_service_unit_user) == :system
+      execute :sudo, :systemctl, command, service_unit_name, raise_on_non_zero_exit: raise_on_non_zero_exit
+    end
+  end
+
+  def fetch_systemd_unit_path(home_dir)
+    if fetch(:sidekiq_service_unit_user) == :user
+      File.join(home_dir, ".config", "systemd", "user")
+    elsif fetch(:sidekiq_service_unit_user) == :system
+      File.join("/", "etc", "systemd", "system")
+    end
+  end
+
+  def upload_template(data:, systemd_path:, service_unit_name:)
+    temp_file_path = File.join('/', 'tmp', "#{service_unit_name}")
+    upload!(data, temp_file_path)
+    if fetch(:sidekiq_service_unit_user) == :system
+      execute :sudo, :mv, temp_file_path, File.join(systemd_path, service_unit_name)
+    else
+      execute :mv, temp_file_path, File.join(systemd_path, service_unit_name)
+    end
+    systemctl(command: 'daemon-reload')
   end
 
   def multiple_processes?

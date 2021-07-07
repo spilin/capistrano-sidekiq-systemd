@@ -36,6 +36,7 @@ set :sidekiq_options_per_process, nil
 set :sidekiq_user, nil
 set :sidekiq_max_mem, nil
 set :service_unit_name, "sidekiq-#{fetch(:stage)}.service"
+set :sidekiq_service_unit_user => :user # :system
 # Rbenv, Chruby, and RVM integration
 set :rbenv_map_bins, fetch(:rbenv_map_bins).to_a.concat(%w[sidekiq])
 set :rvm_map_bins, fetch(:rvm_map_bins).to_a.concat(%w[sidekiq])
